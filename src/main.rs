@@ -1,5 +1,4 @@
 mod cpu6502;
-
 use cpu6502::prelude::*;
 
 fn main() {

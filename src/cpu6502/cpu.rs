@@ -1,4 +1,4 @@
-use std::mem::size_of;
+use rustbucket::Register;
 
 #[derive(Debug, Default)]
 pub struct Cpu6502 {
@@ -37,12 +37,3 @@ impl Cpu6502 {
         self.memory[0xFFFD] = 0x80;
     }
 }
-
-#[derive(Debug, Default)]
-pub struct Register<W: UnsignedInt> {
-    contents: W,
-}
-
-pub trait UnsignedInt {}
-impl UnsignedInt for u8 {}
-impl UnsignedInt for u16 {}
