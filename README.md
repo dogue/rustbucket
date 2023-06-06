@@ -17,3 +17,9 @@ implementation. I can't really say how long it's going to take
 but I am chipping away at it steadily (I'm also doing a monkey
 interpreter following Thortsten Ball's excellent book "Writing
 An Interpreter In Go").
+
+## Useful Links
+
+- https://wiki.cdot.senecacollege.ca/wiki/6502_Addressing_Modes
+- https://www.middle-engine.com/blog/posts/2020/06/23/programming-the-nes-the-6502-in-detail#addressing-modes
+- https://www.masswerk.at/6502/6502_instruction_set.html
