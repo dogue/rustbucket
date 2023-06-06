@@ -1,6 +1,6 @@
 # rustbucket
 
-The ~~~Rust~~~ Crab multi-emulator project.
+The ~~Rust~~ Crab multi-emulator project.
 
 ## What Is It?
 
