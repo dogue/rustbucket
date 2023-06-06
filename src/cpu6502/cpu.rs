@@ -33,6 +33,13 @@ impl Cpu6502 {
         self.memory[0xFFFC] = 0x00;
         self.memory[0xFFFD] = 0x80;
     }
+
+    fn read_instruction(&mut self) -> u8 {
+        let pointer = self.ip.value as usize;
+        let instruction = self.memory[pointer];
+        self.ip.value += 1;
+        instruction
+    }
 }
 
 impl Default for Cpu6502 {
