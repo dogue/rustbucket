@@ -1,3 +1,13 @@
+#[derive(Debug)]
+pub enum Task {
+    FetchOpcode,
+    FetchByte,
+    FetchLow,
+    FetchHigh,
+    MemoryRead,
+    MemoryWrite,
+}
+
 #[derive(Debug, Default)]
 pub struct Register<W: UnsignedInt> {
     pub value: W,
