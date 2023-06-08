@@ -1,6 +1,5 @@
 #[derive(Debug)]
 pub enum Task {
-    FetchOpcode,
     FetchByte,
     FetchLow,
     FetchHigh,

@@ -1,17 +1,25 @@
 use std::collections::VecDeque;
 
-use rustbucket::{Register, Task};
+use rustbucket::Task;
 
-use super::addressing::AddressingMode;
+#[derive(Debug)]
+pub enum Register {
+    A,
+    X,
+    Y,
+    Z,
+    Ip,
+    Sp,
+}
 
 #[derive(Debug)]
 pub struct Cpu6502 {
-    pub a: Register<u8>,
-    pub x: Register<u8>,
-    pub y: Register<u8>,
-    pub z: Register<u8>,
-    pub ip: Register<u16>,
-    pub sp: Register<u16>,
+    pub a: u8,
+    pub x: u8,
+    pub y: u8,
+    pub z: u8,
+    pub ip: u16,
+    pub sp: u16,
     pub memory: Vec<u8>,
 
     // This is a pointer into the 6502's memory space
@@ -19,6 +27,8 @@ pub struct Cpu6502 {
     // and is not part of the 6502
     pointer: u16,
     task_queue: VecDeque<Task>,
+    target_register: *mut u8,
+    halted: bool,
 }
 
 impl Cpu6502 {
@@ -44,15 +54,57 @@ impl Cpu6502 {
         self.memory[0xFFFD] = 0x80;
     }
 
-    fn read_instruction(&mut self) -> u8 {
-        let pointer = self.ip.value as usize;
-        let instruction = self.memory[pointer];
-        self.ip.value += 1;
-        instruction
+    pub fn run(&mut self) {
+        loop {
+            if self.halted {
+                break;
+            }
+
+            if self.task_queue.is_empty() {
+                self.decode_next();
+                continue;
+            }
+
+            match self.task_queue.pop_front().unwrap() {
+                Task::FetchByte => self.write_target(self.fetch_byte()),
+                Task::FetchLow => self.set_pointer_low(self.fetch_byte()),
+                Task::FetchHigh => self.set_pointer_high(self.fetch_byte()),
+                Task::MemoryRead => self.write_target(self.read_memory()),
+                Task::MemoryWrite => self.write_memory(self.read_target()),
+            }
+
+            self.halted = true;
+        }
     }
 
-    fn seek(&mut self) {
-        self.ip.value += 1;
+    fn read_target(&self) -> u8 {
+        unsafe { *self.target_register }
+    }
+
+    fn write_target(&mut self, value: u8) {
+        println!("Writing {} into the target register", value);
+        unsafe { *self.target_register = value };
+    }
+
+    fn set_target(&mut self, target: Register) {
+        self.target_register = match target {
+            Register::A => &mut (self).a as *mut u8,
+            Register::X => &mut (self).x as *mut u8,
+            Register::Y => &mut (self).y as *mut u8,
+            _ => panic!("You should not be writing here: {:?}", target),
+        }
+    }
+
+    fn decode_next(&mut self) {
+        let opcode = self.read_instruction();
+        self.decode(opcode);
+    }
+
+    fn read_instruction(&mut self) -> u8 {
+        let pointer = self.ip as usize;
+        let instruction = self.memory[pointer];
+        self.ip += 1;
+        instruction
     }
 
     fn set_pointer_high(&mut self, value: u8) {
@@ -63,11 +115,23 @@ impl Cpu6502 {
         self.pointer |= value as u16;
     }
 
-    fn lda(&mut self, mode: AddressingMode) {}
+    fn fetch_byte(&self) -> u8 {
+        self.memory[self.ip as usize]
+    }
+
+    fn read_memory(&self) -> u8 {
+        self.memory[self.pointer as usize]
+    }
+
+    fn write_memory(&mut self, value: u8) {
+        self.memory[self.pointer as usize] = value;
+    }
+
+    fn lda(&mut self) {}
 
     fn nop(&self) {}
 
-    fn decode(&self, opcode: u8) {
+    fn decode(&mut self, opcode: u8) {
         match opcode {
             0x00 => {}
             0x01 => {}
@@ -167,7 +231,10 @@ impl Cpu6502 {
             0xA5 => {}
             0xA6 => {}
             0xA8 => {}
-            0xA9 => {}
+            0xA9 => {
+                self.set_target(Register::A);
+                self.task_queue.push_back(Task::FetchByte);
+            }
             0xAA => {}
             0xAC => {}
             0xAD => {}
@@ -234,15 +301,17 @@ impl Default for Cpu6502 {
         let memory: Vec<u8> = vec![0; 0xFFFF];
 
         Self {
-            a: Register::default(),
-            x: Register::default(),
-            y: Register::default(),
-            z: Register::default(),
-            ip: Register::default(),
-            sp: Register::default(),
+            a: 0,
+            x: 0,
+            y: 0,
+            z: 0,
+            ip: 0,
+            sp: 0,
             memory,
             pointer: 0,
             task_queue: VecDeque::new(),
+            target_register: &mut 0,
+            halted: false,
         }
     }
 }
@@ -271,5 +340,13 @@ mod test {
 
         assert_eq!(cpu.memory[0xFFFC], 0x00);
         assert_eq!(cpu.memory[0xFFFD], 0x80);
+    }
+
+    #[test]
+    fn load_a_immediate() {
+        let program: Vec<u8> = vec![0xA9, 0x69];
+        let mut cpu = Cpu6502::with_program(program);
+        cpu.run();
+        assert_eq!(cpu.a, 0x69);
     }
 }
