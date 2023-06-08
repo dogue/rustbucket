@@ -62,18 +62,26 @@ impl Cpu6502 {
 
             if self.task_queue.is_empty() {
                 self.decode_next();
+                self.ip += 1;
                 continue;
             }
 
             match self.task_queue.pop_front().unwrap() {
-                Task::FetchByte => self.write_target(self.fetch_byte()),
-                Task::FetchLow => self.set_pointer_low(self.fetch_byte()),
-                Task::FetchHigh => self.set_pointer_high(self.fetch_byte()),
+                Task::FetchByte => {
+                    self.write_target(self.fetch_byte());
+                    self.ip += 1;
+                }
+                Task::FetchLow => {
+                    self.set_pointer_low(self.fetch_byte());
+                    self.ip += 1;
+                }
+                Task::FetchHigh => {
+                    self.set_pointer_high(self.fetch_byte());
+                    self.ip += 1;
+                }
                 Task::MemoryRead => self.write_target(self.read_memory()),
                 Task::MemoryWrite => self.write_memory(self.read_target()),
             }
-
-            self.halted = true;
         }
     }
 
@@ -82,7 +90,6 @@ impl Cpu6502 {
     }
 
     fn write_target(&mut self, value: u8) {
-        println!("Writing {} into the target register", value);
         unsafe { *self.target_register = value };
     }
 
@@ -96,15 +103,8 @@ impl Cpu6502 {
     }
 
     fn decode_next(&mut self) {
-        let opcode = self.read_instruction();
+        let opcode = self.fetch_byte();
         self.decode(opcode);
-    }
-
-    fn read_instruction(&mut self) -> u8 {
-        let pointer = self.ip as usize;
-        let instruction = self.memory[pointer];
-        self.ip += 1;
-        instruction
     }
 
     fn set_pointer_high(&mut self, value: u8) {
@@ -237,7 +237,12 @@ impl Cpu6502 {
             }
             0xAA => {}
             0xAC => {}
-            0xAD => {}
+            0xAD => {
+                self.set_target(Register::A);
+                self.task_queue.push_back(Task::FetchLow);
+                self.task_queue.push_back(Task::FetchHigh);
+                self.task_queue.push_back(Task::MemoryRead);
+            }
             0xAE => {}
             0xB0 => {}
             0xB1 => {}
@@ -289,6 +294,7 @@ impl Cpu6502 {
             0xFA => {}
             0xFD => {}
             0xFE => {}
+            0xFF => self.halted = true,
             _ => {}
         }
     }
@@ -344,9 +350,18 @@ mod test {
 
     #[test]
     fn load_a_immediate() {
-        let program: Vec<u8> = vec![0xA9, 0x69];
+        let program: Vec<u8> = vec![0xA9, 0x69, 0xFF];
         let mut cpu = Cpu6502::with_program(program);
         cpu.run();
         assert_eq!(cpu.a, 0x69);
+    }
+
+    #[test]
+    fn load_a_absolute() {
+        let program: Vec<u8> = vec![0xAD, 0x00, 0x80, 0xFF];
+        let mut cpu = Cpu6502::with_program(program);
+        cpu.run();
+
+        assert_eq!(cpu.a, 0xAD);
     }
 }

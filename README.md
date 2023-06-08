@@ -28,6 +28,9 @@ to a register. I'm still only vaguely intermediate with Rust and I fought with t
 smart way and failed. I tried multiple different ways and in the end just settled on a mutable raw pointer with the unsafe accesses cordoned
 off into safe methods.
 
+I've added a special opcode (`0xFF`) that isn't used on the real hardware as a halt instruction. Without real pins to pull high or low, I
+I needed a way to break out of the main loop (else tests would run the instruction pointer out of index bounds and panic).
+
 ## Useful Links
 
 - https://wiki.cdot.senecacollege.ca/wiki/6502_Addressing_Modes

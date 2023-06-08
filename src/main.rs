@@ -2,7 +2,7 @@ mod cpu6502;
 use cpu6502::prelude::*;
 
 fn main() {
-    let program: Vec<u8> = vec![0xDE, 0xAD, 0xBE, 0xEF];
+    let program: Vec<u6ec![0xDE, 0xAD, 0xBE, 0xEF];
 
     let cpu = Cpu6502::with_program(program);
 
