@@ -147,6 +147,7 @@ impl Cpu6502 {
     fn nop(&self) {}
 
     fn decode(&mut self, opcode: u8) {
+        println!("Opcode: {:0>2X}", opcode);
         match opcode {
             0x00 => {}
             0x01 => {}
@@ -413,5 +414,7 @@ mod test {
         cpu.run();
 
         println!("{:0>2X}, {:0>2X}, {:0>4X}", cpu.a, cpu.x, cpu.pointer);
+
+        assert_eq!(cpu.a, 0xFF);
     }
 }
