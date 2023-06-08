@@ -228,7 +228,12 @@ impl Cpu6502 {
             0xA1 => {}
             0xA2 => {}
             0xA4 => {}
-            0xA5 => {}
+            0xA5 => {
+                self.set_target(Register::A);
+                self.set_pointer_high(0x00);
+                self.task_queue.push_back(Task::FetchLow);
+                self.task_queue.push_back(Task::MemoryRead);
+            }
             0xA6 => {}
             0xA8 => {}
             0xA9 => {
@@ -363,5 +368,15 @@ mod test {
         cpu.run();
 
         assert_eq!(cpu.a, 0xAD);
+    }
+
+    #[test]
+    fn load_a_zeropage() {
+        let program: Vec<u8> = vec![0xA5, 0x69, 0xFF];
+        let mut cpu = Cpu6502::with_program(program);
+        cpu.memory[0x69] = 0x69;
+        cpu.run();
+
+        assert_eq!(cpu.a, 0x69);
     }
 }
