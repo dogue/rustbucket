@@ -243,10 +243,22 @@ impl Cpu6502 {
             0x9A => {}
             0x9D => {}
             0xA0 => {}
-            0xA1 => {}
+            0xA1 => {
+                // LDA indirect, X
+                self.set_target(Register::A);
+                self.task_queue.push_back(Task::FetchByte);
+                self.task_queue.push_back(Task::AddLow(self.x));
+                self.task_queue
+                    .push_back(Task::SetLow(self.memory[self.ip as usize]));
+                self.task_queue.push_back(Task::FetchByte);
+                self.task_queue
+                    .push_back(Task::SetHigh(self.memory[self.ip as usize]));
+                self.task_queue.push_back(Task::MemoryRead);
+            }
             0xA2 => {}
             0xA4 => {}
             0xA5 => {
+                // LDA zeropage
                 self.set_target(Register::A);
                 self.set_pointer_high(0x00);
                 self.task_queue.push_back(Task::FetchLow);
@@ -255,12 +267,14 @@ impl Cpu6502 {
             0xA6 => {}
             0xA8 => {}
             0xA9 => {
+                // LDA immediate
                 self.set_target(Register::A);
                 self.task_queue.push_back(Task::FetchByte);
             }
             0xAA => {}
             0xAC => {}
             0xAD => {
+                // LDA absolute
                 self.set_target(Register::A);
                 self.task_queue.push_back(Task::FetchLow);
                 self.task_queue.push_back(Task::FetchHigh);
@@ -270,13 +284,28 @@ impl Cpu6502 {
             0xB0 => {}
             0xB1 => {}
             0xB4 => {}
-            0xB5 => {}
+            0xB5 => {
+                // LDA zeropage, X
+                self.set_target(Register::A);
+                self.set_pointer_high(0x00);
+                self.task_queue.push_back(Task::FetchLow);
+                self.task_queue.push_back(Task::AddLow(self.x));
+                self.task_queue.push_back(Task::MemoryRead);
+            }
             0xB6 => {}
             0xB8 => {}
-            0xB9 => {}
+            0xB9 => {
+                // LDA absolute, Y
+                self.set_target(Register::A);
+                self.task_queue.push_back(Task::FetchLow);
+                self.task_queue.push_back(Task::FetchHigh);
+                self.task_queue.push_back(Task::AddLow(self.y));
+                self.task_queue.push_back(Task::MemoryRead);
+            }
             0xBA => {}
             0xBC => {}
             0xBD => {
+                // LDA absolute, X
                 self.set_target(Register::A);
                 self.task_queue.push_back(Task::FetchLow);
                 self.task_queue.push_back(Task::FetchHigh);
@@ -407,12 +436,48 @@ mod test {
 
     #[test]
     fn load_a_absolute_x() {
-        let program: Vec<u8> = vec![0xBD, 0x68, 0x00, 0xFF];
+        let program: Vec<u8> = vec![0xBD, 0x68, 0x42, 0xFF];
         let mut cpu = Cpu6502::with_program(program);
-        cpu.memory[0x69] = 0xFF;
+        cpu.memory[0x4269] = 0xFF;
         cpu.x = 0x01;
         cpu.run();
 
         assert_eq!(cpu.a, 0xFF);
+    }
+
+    #[test]
+    fn load_a_zeropage_x() {
+        let program: Vec<u8> = vec![0xB5, 0x68, 0xFF];
+        let mut cpu = Cpu6502::with_program(program);
+        cpu.memory[0x0069] = 0xFF;
+        cpu.x = 0x01;
+        cpu.run();
+
+        assert_eq!(cpu.a, 0xFF);
+    }
+
+    #[test]
+    fn load_a_absolute_y() {
+        let program: Vec<u8> = vec![0xB9, 0x68, 0x42, 0xFF];
+        let mut cpu = Cpu6502::with_program(program);
+        cpu.memory[0x4269] = 0xFF;
+        cpu.y = 0x01;
+        cpu.run();
+
+        assert_eq!(cpu.a, 0xFF);
+    }
+
+    #[test]
+    fn load_a_indirect_x() {
+        let program: Vec<u8> = vec![0xA1, 0x10, 0xFF]; // 0xA1 is the opcode for LDA (indirect, X)
+        let mut cpu = Cpu6502::with_program(program);
+
+        cpu.x = 0x04; // Set X register
+        cpu.memory[0x14] = 0x20; // Set the value at memory location 0x14
+        cpu.memory[0x20] = 0xFF; // Set the value at memory location 0x20
+
+        cpu.run();
+
+        assert_eq!(cpu.a, 0xFF); // Assert that the value of A register is as expected
     }
 }
