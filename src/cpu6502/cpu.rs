@@ -52,6 +52,14 @@ impl Cpu6502 {
         // reset vector
         self.memory[0xFFFC] = 0x00;
         self.memory[0xFFFD] = 0x80;
+
+        self.reset();
+    }
+
+    pub fn reset(&mut self) {
+        self.set_pointer_low(self.memory[0xFFFC]);
+        self.set_pointer_high(self.memory[0xFFFD]);
+        self.ip = self.pointer;
     }
 
     pub fn run(&mut self) {
@@ -82,7 +90,6 @@ impl Cpu6502 {
                 Task::SetLow(v) => self.set_pointer_low(v),
                 Task::SetHigh(v) => self.set_pointer_high(v),
                 Task::AddLow(v) => {
-                    println!("Adding to low: {}", v);
                     self.set_pointer_low(self.get_pointer_low() + v);
                 }
                 Task::AddHigh(v) => self.set_pointer_high(self.get_pointer_high() + v),
@@ -115,11 +122,11 @@ impl Cpu6502 {
     }
 
     fn set_pointer_high(&mut self, value: u8) {
-        self.pointer |= (value as u16) << 8;
+        self.pointer = (self.pointer & 0x00FF) | ((value as u16) << 8);
     }
 
     fn set_pointer_low(&mut self, value: u8) {
-        self.pointer |= value as u16;
+        self.pointer = (self.pointer & 0xFF00) | (value as u16);
     }
 
     fn get_pointer_high(&self) -> u8 {
@@ -147,7 +154,6 @@ impl Cpu6502 {
     fn nop(&self) {}
 
     fn decode(&mut self, opcode: u8) {
-        println!("Opcode: {:0>2X}", opcode);
         match opcode {
             0x00 => {}
             0x01 => {}
@@ -276,13 +282,10 @@ impl Cpu6502 {
             0xBC => {}
             0xBD => {
                 self.set_target(Register::A);
-                self.set_pointer_high(0x69);
                 self.task_queue.push_back(Task::FetchLow);
-                println!("Queueing AddLow task with value {}", self.x);
+                self.task_queue.push_back(Task::FetchHigh);
                 self.task_queue.push_back(Task::AddLow(self.x));
                 self.task_queue.push_back(Task::MemoryRead);
-
-                println!("{:?}", self.task_queue);
             }
             0xBE => {}
             0xC0 => {}
@@ -383,6 +386,7 @@ mod test {
         let program: Vec<u8> = vec![0xA9, 0x69, 0xFF];
         let mut cpu = Cpu6502::with_program(program);
         cpu.run();
+
         assert_eq!(cpu.a, 0x69);
     }
 
@@ -407,13 +411,11 @@ mod test {
 
     #[test]
     fn load_a_absolute_x() {
-        let program: Vec<u8> = vec![0xBD, 0x68, 0xFF];
+        let program: Vec<u8> = vec![0xBD, 0x68, 0x00, 0xFF];
         let mut cpu = Cpu6502::with_program(program);
-        cpu.memory[0x0069] = 0xFF;
+        cpu.memory[0x69] = 0xFF;
         cpu.x = 0x01;
         cpu.run();
-
-        println!("{:0>2X}, {:0>2X}, {:0>4X}", cpu.a, cpu.x, cpu.pointer);
 
         assert_eq!(cpu.a, 0xFF);
     }
