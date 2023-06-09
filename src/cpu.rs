@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use rustbucket::Task;
+use crate::tasks::Task;
 
 #[derive(Debug)]
 pub enum Register {
@@ -148,10 +148,6 @@ impl Cpu6502 {
     fn write_memory(&mut self, value: u8) {
         self.memory[self.pointer as usize] = value;
     }
-
-    fn lda(&mut self) {}
-
-    fn nop(&self) {}
 
     fn decode(&mut self, opcode: u8) {
         match opcode {
