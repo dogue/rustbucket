@@ -66,9 +66,9 @@ impl Cpu6502 {
     }
 
     fn fetch_byte(&mut self) -> u8 {
-        let ip = self.ip;
+        let addr = self.ip;
         self.ip += 1;
-        self.memory[ip as usize]
+        self.memory[addr as usize]
     }
 
     fn read_memory(&self) -> u8 {
@@ -183,7 +183,11 @@ impl Cpu6502 {
                 self.set_pointer_low(low);
                 self.a = self.read_memory();
             }
-            0xA2 => {}
+            0xA2 => {
+                // LDX immediate
+                let byte = self.fetch_byte();
+                self.x = byte;
+            }
             0xA4 => {}
             0xA5 => {
                 // LDA zeropage
@@ -192,7 +196,13 @@ impl Cpu6502 {
                 self.set_pointer_low(byte);
                 self.a = self.read_memory();
             }
-            0xA6 => {}
+            0xA6 => {
+                // LDX zeropage
+                let byte = self.fetch_byte();
+                self.set_pointer_high(0x00);
+                self.set_pointer_low(byte);
+                self.x = self.read_memory();
+            }
             0xA8 => {}
             0xA9 => {
                 // LDA immediate
@@ -209,7 +219,14 @@ impl Cpu6502 {
                 self.set_pointer_low(low);
                 self.a = self.read_memory();
             }
-            0xAE => {}
+            0xAE => {
+                // LDX absolute
+                let low = self.fetch_byte();
+                let high = self.fetch_byte();
+                self.set_pointer_high(high);
+                self.set_pointer_low(low);
+                self.x = self.read_memory();
+            }
             0xB0 => {}
             0xB1 => {
                 // LDA (indirect), Y
@@ -234,11 +251,6 @@ impl Cpu6502 {
             0xB8 => {}
             0xB9 => {
                 // LDA absolute, Y
-                // self.set_target(Register::A);
-                // self.task_queue.push_back(Task::FetchLow);
-                // self.task_queue.push_back(Task::FetchHigh);
-                // self.task_queue.push_back(Task::AddLow(self.y));
-                // self.task_queue.push_back(Task::MemoryRead);
                 let low = self.fetch_byte();
                 let high = self.fetch_byte();
                 let low = low + self.y;
@@ -412,16 +424,16 @@ mod test {
 
     #[test]
     fn load_a_indirect_x() {
-        let program: Vec<u8> = vec![0xA1, 0x10, 0xFF]; // 0xA1 is the opcode for LDA (indirect, X)
+        let program: Vec<u8> = vec![0xA1, 0x10, 0xFF];
         let mut cpu = Cpu6502::with_program(program);
 
-        cpu.x = 0x04; // Set X register
-        cpu.memory[0x14] = 0x20; // Set the value at memory location 0x14
-        cpu.memory[0x20] = 0xFF; // Set the value at memory location 0x20
+        cpu.x = 0x04;
+        cpu.memory[0x14] = 0x20;
+        cpu.memory[0x20] = 0xFF;
 
         cpu.run();
 
-        assert_eq!(cpu.a, 0xFF); // Assert that the value of A register is as expected
+        assert_eq!(cpu.a, 0xFF);
     }
 
     #[test]
@@ -437,5 +449,33 @@ mod test {
         cpu.run();
 
         assert_eq!(cpu.a, 0xFF);
+    }
+
+    #[test]
+    fn load_x_immediate() {
+        let program: Vec<u8> = vec![0xA2, 0x69, 0xFF];
+        let mut cpu = Cpu6502::with_program(program);
+        cpu.run();
+
+        assert_eq!(cpu.x, 0x69);
+    }
+
+    #[test]
+    fn load_x_absolute() {
+        let program: Vec<u8> = vec![0xAE, 0x00, 0x80, 0xFF];
+        let mut cpu = Cpu6502::with_program(program);
+        cpu.run();
+
+        assert_eq!(cpu.x, 0xAE);
+    }
+
+    #[test]
+    fn load_x_zeropage() {
+        let program: Vec<u8> = vec![0xA6, 0x69, 0xFF];
+        let mut cpu = Cpu6502::with_program(program);
+        cpu.memory[0x69] = 0x69;
+        cpu.run();
+
+        assert_eq!(cpu.x, 0x69);
     }
 }
