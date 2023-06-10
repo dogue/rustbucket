@@ -1,6 +1,6 @@
 # rustbucket
 
-My ~~Rust~~ Crab 6502 emulator project.
+My Rust 6502 emulator project.
 
 ## What Is It?
 
