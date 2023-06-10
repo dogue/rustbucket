@@ -174,8 +174,7 @@ impl Cpu6502 {
             0x9D => {}
             0xA0 => {}
             0xA1 => {
-                // LDA indirect, X
-                self.set_pointer_high(0x00);
+                // LDA (indirect, X)
                 let zp = self.fetch_byte();
                 let zp = zp + self.x;
                 let low = self.memory[zp as usize];
@@ -212,7 +211,16 @@ impl Cpu6502 {
             }
             0xAE => {}
             0xB0 => {}
-            0xB1 => {}
+            0xB1 => {
+                // LDA (indirect), Y
+                let zp = self.fetch_byte();
+                let low = self.memory[zp as usize];
+                let high = self.memory[(zp + 1) as usize];
+                let low = low + self.y;
+                self.set_pointer_high(high);
+                self.set_pointer_low(low);
+                self.a = self.read_memory();
+            }
             0xB4 => {}
             0xB5 => {
                 // LDA zeropage, X
@@ -414,5 +422,20 @@ mod test {
         cpu.run();
 
         assert_eq!(cpu.a, 0xFF); // Assert that the value of A register is as expected
+    }
+
+    #[test]
+    fn load_a_indirect_y() {
+        let program: Vec<u8> = vec![0xB1, 0x42, 0xFF];
+        let mut cpu = Cpu6502::with_program(program);
+
+        cpu.y = 0x01;
+        cpu.memory[0x0042] = 0x68;
+        cpu.memory[0x0043] = 0x69;
+        cpu.memory[0x6969] = 0xFF;
+
+        cpu.run();
+
+        assert_eq!(cpu.a, 0xFF);
     }
 }
