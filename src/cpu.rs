@@ -1,17 +1,3 @@
-use std::collections::VecDeque;
-
-use crate::tasks::Task;
-
-#[derive(Debug)]
-pub enum Register {
-    A,
-    X,
-    Y,
-    Z,
-    Ip,
-    Sp,
-}
-
 #[derive(Debug)]
 pub struct Cpu6502 {
     pub a: u8,
@@ -21,14 +7,12 @@ pub struct Cpu6502 {
     pub ip: u16,
     pub sp: u16,
     pub memory: Vec<u8>,
+    pub halted: bool,
 
     // This is a pointer into the 6502's memory space
     // It is for managing interal state of the emulator
     // and is not part of the 6502
     pointer: u16,
-    task_queue: VecDeque<Task>,
-    target_register: *mut u8,
-    halted: bool,
 }
 
 impl Cpu6502 {
@@ -68,57 +52,9 @@ impl Cpu6502 {
                 break;
             }
 
-            if self.task_queue.is_empty() {
-                self.decode_next();
-                self.ip += 1;
-                continue;
-            }
-
-            match self.task_queue.pop_front().unwrap() {
-                Task::FetchByte => {
-                    self.write_target(self.fetch_byte());
-                    self.ip += 1;
-                }
-                Task::FetchLow => {
-                    self.set_pointer_low(self.fetch_byte());
-                    self.ip += 1;
-                }
-                Task::FetchHigh => {
-                    self.set_pointer_high(self.fetch_byte());
-                    self.ip += 1;
-                }
-                Task::SetLow(v) => self.set_pointer_low(v),
-                Task::SetHigh(v) => self.set_pointer_high(v),
-                Task::AddLow(v) => {
-                    self.set_pointer_low(self.get_pointer_low() + v);
-                }
-                Task::AddHigh(v) => self.set_pointer_high(self.get_pointer_high() + v),
-                Task::MemoryRead => self.write_target(self.read_memory()),
-                Task::MemoryWrite => self.write_memory(self.read_target()),
-            }
+            let opcode = self.fetch_byte();
+            self.decode(opcode);
         }
-    }
-
-    fn read_target(&self) -> u8 {
-        unsafe { *self.target_register }
-    }
-
-    fn write_target(&mut self, value: u8) {
-        unsafe { *self.target_register = value };
-    }
-
-    fn set_target(&mut self, target: Register) {
-        self.target_register = match target {
-            Register::A => &mut (self).a as *mut u8,
-            Register::X => &mut (self).x as *mut u8,
-            Register::Y => &mut (self).y as *mut u8,
-            _ => panic!("You should not be writing here: {:?}", target),
-        }
-    }
-
-    fn decode_next(&mut self) {
-        let opcode = self.fetch_byte();
-        self.decode(opcode);
     }
 
     fn set_pointer_high(&mut self, value: u8) {
@@ -129,23 +65,17 @@ impl Cpu6502 {
         self.pointer = (self.pointer & 0xFF00) | (value as u16);
     }
 
-    fn get_pointer_high(&self) -> u8 {
-        (self.pointer >> 8) as u8
-    }
-
-    fn get_pointer_low(&self) -> u8 {
-        self.pointer as u8
-    }
-
-    fn fetch_byte(&self) -> u8 {
-        self.memory[self.ip as usize]
+    fn fetch_byte(&mut self) -> u8 {
+        let ip = self.ip;
+        self.ip += 1;
+        self.memory[ip as usize]
     }
 
     fn read_memory(&self) -> u8 {
         self.memory[self.pointer as usize]
     }
 
-    fn write_memory(&mut self, value: u8) {
+    fn _write_memory(&mut self, value: u8) {
         self.memory[self.pointer as usize] = value;
     }
 
@@ -245,40 +175,40 @@ impl Cpu6502 {
             0xA0 => {}
             0xA1 => {
                 // LDA indirect, X
-                self.set_target(Register::A);
-                self.task_queue.push_back(Task::FetchByte);
-                self.task_queue.push_back(Task::AddLow(self.x));
-                self.task_queue
-                    .push_back(Task::SetLow(self.memory[self.ip as usize]));
-                self.task_queue.push_back(Task::FetchByte);
-                self.task_queue
-                    .push_back(Task::SetHigh(self.memory[self.ip as usize]));
-                self.task_queue.push_back(Task::MemoryRead);
+                self.set_pointer_high(0x00);
+                let zp = self.fetch_byte();
+                let zp = zp + self.x;
+                let low = self.memory[zp as usize];
+                let high = self.memory[(zp + 1) as usize];
+                self.set_pointer_high(high);
+                self.set_pointer_low(low);
+                self.a = self.read_memory();
             }
             0xA2 => {}
             0xA4 => {}
             0xA5 => {
                 // LDA zeropage
-                self.set_target(Register::A);
+                let byte = self.fetch_byte();
                 self.set_pointer_high(0x00);
-                self.task_queue.push_back(Task::FetchLow);
-                self.task_queue.push_back(Task::MemoryRead);
+                self.set_pointer_low(byte);
+                self.a = self.read_memory();
             }
             0xA6 => {}
             0xA8 => {}
             0xA9 => {
                 // LDA immediate
-                self.set_target(Register::A);
-                self.task_queue.push_back(Task::FetchByte);
+                let byte = self.fetch_byte();
+                self.a = byte;
             }
             0xAA => {}
             0xAC => {}
             0xAD => {
                 // LDA absolute
-                self.set_target(Register::A);
-                self.task_queue.push_back(Task::FetchLow);
-                self.task_queue.push_back(Task::FetchHigh);
-                self.task_queue.push_back(Task::MemoryRead);
+                let low = self.fetch_byte();
+                let high = self.fetch_byte();
+                self.set_pointer_high(high);
+                self.set_pointer_low(low);
+                self.a = self.read_memory();
             }
             0xAE => {}
             0xB0 => {}
@@ -286,31 +216,38 @@ impl Cpu6502 {
             0xB4 => {}
             0xB5 => {
                 // LDA zeropage, X
-                self.set_target(Register::A);
+                let byte = self.fetch_byte();
+                let byte = byte + self.x;
                 self.set_pointer_high(0x00);
-                self.task_queue.push_back(Task::FetchLow);
-                self.task_queue.push_back(Task::AddLow(self.x));
-                self.task_queue.push_back(Task::MemoryRead);
+                self.set_pointer_low(byte);
+                self.a = self.read_memory();
             }
             0xB6 => {}
             0xB8 => {}
             0xB9 => {
                 // LDA absolute, Y
-                self.set_target(Register::A);
-                self.task_queue.push_back(Task::FetchLow);
-                self.task_queue.push_back(Task::FetchHigh);
-                self.task_queue.push_back(Task::AddLow(self.y));
-                self.task_queue.push_back(Task::MemoryRead);
+                // self.set_target(Register::A);
+                // self.task_queue.push_back(Task::FetchLow);
+                // self.task_queue.push_back(Task::FetchHigh);
+                // self.task_queue.push_back(Task::AddLow(self.y));
+                // self.task_queue.push_back(Task::MemoryRead);
+                let low = self.fetch_byte();
+                let high = self.fetch_byte();
+                let low = low + self.y;
+                self.set_pointer_high(high);
+                self.set_pointer_low(low);
+                self.a = self.read_memory();
             }
             0xBA => {}
             0xBC => {}
             0xBD => {
                 // LDA absolute, X
-                self.set_target(Register::A);
-                self.task_queue.push_back(Task::FetchLow);
-                self.task_queue.push_back(Task::FetchHigh);
-                self.task_queue.push_back(Task::AddLow(self.x));
-                self.task_queue.push_back(Task::MemoryRead);
+                let low = self.fetch_byte();
+                let high = self.fetch_byte();
+                let low = low + self.x;
+                self.set_pointer_high(high);
+                self.set_pointer_low(low);
+                self.a = self.read_memory();
             }
             0xBE => {}
             0xC0 => {}
@@ -373,8 +310,6 @@ impl Default for Cpu6502 {
             sp: 0,
             memory,
             pointer: 0,
-            task_queue: VecDeque::new(),
-            target_register: &mut 0,
             halted: false,
         }
     }
