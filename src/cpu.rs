@@ -1,9 +1,15 @@
+mod flags;
+mod opcodes;
+
+use flags::Flags;
+use opcodes::*;
+
 #[derive(Debug)]
 pub struct Cpu6502 {
     pub a: u8,
     pub x: u8,
     pub y: u8,
-    pub z: u8,
+    pub flags: Flags,
     pub ip: u16,
     pub sp: u16,
     pub memory: Vec<u8>,
@@ -173,102 +179,27 @@ impl Cpu6502 {
             0x9A => {}
             0x9D => {}
             0xA0 => {}
-            0xA1 => {
-                // LDA (indirect, X)
-                let zp = self.fetch_byte();
-                let zp = zp + self.x;
-                let low = self.memory[zp as usize];
-                let high = self.memory[(zp + 1) as usize];
-                self.set_pointer_high(high);
-                self.set_pointer_low(low);
-                self.a = self.read_memory();
-            }
-            0xA2 => {
-                // LDX immediate
-                let byte = self.fetch_byte();
-                self.x = byte;
-            }
+            0xA1 => load_a_indirect_x(self),
+            0xA2 => load_x_immediate(self),
             0xA4 => {}
-            0xA5 => {
-                // LDA zeropage
-                let byte = self.fetch_byte();
-                self.set_pointer_high(0x00);
-                self.set_pointer_low(byte);
-                self.a = self.read_memory();
-            }
-            0xA6 => {
-                // LDX zeropage
-                let byte = self.fetch_byte();
-                self.set_pointer_high(0x00);
-                self.set_pointer_low(byte);
-                self.x = self.read_memory();
-            }
+            0xA5 => load_a_zeropage(self),
+            0xA6 => load_x_zeropage(self),
             0xA8 => {}
-            0xA9 => {
-                // LDA immediate
-                let byte = self.fetch_byte();
-                self.a = byte;
-            }
+            0xA9 => load_a_immediate(self),
             0xAA => {}
             0xAC => {}
-            0xAD => {
-                // LDA absolute
-                let low = self.fetch_byte();
-                let high = self.fetch_byte();
-                self.set_pointer_high(high);
-                self.set_pointer_low(low);
-                self.a = self.read_memory();
-            }
-            0xAE => {
-                // LDX absolute
-                let low = self.fetch_byte();
-                let high = self.fetch_byte();
-                self.set_pointer_high(high);
-                self.set_pointer_low(low);
-                self.x = self.read_memory();
-            }
+            0xAD => load_a_absolute(self),
+            0xAE => load_x_absolute(self),
             0xB0 => {}
-            0xB1 => {
-                // LDA (indirect), Y
-                let zp = self.fetch_byte();
-                let low = self.memory[zp as usize];
-                let high = self.memory[(zp + 1) as usize];
-                let low = low + self.y;
-                self.set_pointer_high(high);
-                self.set_pointer_low(low);
-                self.a = self.read_memory();
-            }
+            0xB1 => load_a_indirect_y(self),
             0xB4 => {}
-            0xB5 => {
-                // LDA zeropage, X
-                let byte = self.fetch_byte();
-                let byte = byte + self.x;
-                self.set_pointer_high(0x00);
-                self.set_pointer_low(byte);
-                self.a = self.read_memory();
-            }
+            0xB5 => load_a_zeropage_x(self),
             0xB6 => {}
             0xB8 => {}
-            0xB9 => {
-                // LDA absolute, Y
-                let low = self.fetch_byte();
-                let high = self.fetch_byte();
-                let low = low + self.y;
-                self.set_pointer_high(high);
-                self.set_pointer_low(low);
-                self.a = self.read_memory();
-            }
+            0xB9 => load_a_absolute_y(self),
             0xBA => {}
             0xBC => {}
-            0xBD => {
-                // LDA absolute, X
-                let low = self.fetch_byte();
-                let high = self.fetch_byte();
-                let low = low + self.x;
-                self.set_pointer_high(high);
-                self.set_pointer_low(low);
-                self.a = self.read_memory();
-            }
+            0xBD => load_a_absolute_x(self),
             0xBE => {}
             0xC0 => {}
             0xC1 => {}
@@ -325,9 +256,9 @@ impl Default for Cpu6502 {
             a: 0,
             x: 0,
             y: 0,
-            z: 0,
             ip: 0,
             sp: 0,
+            flags: Flags::default(),
             memory,
             pointer: 0,
             halted: false,
@@ -359,123 +290,5 @@ mod test {
 
         assert_eq!(cpu.memory[0xFFFC], 0x00);
         assert_eq!(cpu.memory[0xFFFD], 0x80);
-    }
-
-    #[test]
-    fn load_a_immediate() {
-        let program: Vec<u8> = vec![0xA9, 0x69, 0xFF];
-        let mut cpu = Cpu6502::with_program(program);
-        cpu.run();
-
-        assert_eq!(cpu.a, 0x69);
-    }
-
-    #[test]
-    fn load_a_absolute() {
-        let program: Vec<u8> = vec![0xAD, 0x00, 0x80, 0xFF];
-        let mut cpu = Cpu6502::with_program(program);
-        cpu.run();
-
-        assert_eq!(cpu.a, 0xAD);
-    }
-
-    #[test]
-    fn load_a_zeropage() {
-        let program: Vec<u8> = vec![0xA5, 0x69, 0xFF];
-        let mut cpu = Cpu6502::with_program(program);
-        cpu.memory[0x69] = 0x69;
-        cpu.run();
-
-        assert_eq!(cpu.a, 0x69);
-    }
-
-    #[test]
-    fn load_a_absolute_x() {
-        let program: Vec<u8> = vec![0xBD, 0x68, 0x42, 0xFF];
-        let mut cpu = Cpu6502::with_program(program);
-        cpu.memory[0x4269] = 0xFF;
-        cpu.x = 0x01;
-        cpu.run();
-
-        assert_eq!(cpu.a, 0xFF);
-    }
-
-    #[test]
-    fn load_a_zeropage_x() {
-        let program: Vec<u8> = vec![0xB5, 0x68, 0xFF];
-        let mut cpu = Cpu6502::with_program(program);
-        cpu.memory[0x0069] = 0xFF;
-        cpu.x = 0x01;
-        cpu.run();
-
-        assert_eq!(cpu.a, 0xFF);
-    }
-
-    #[test]
-    fn load_a_absolute_y() {
-        let program: Vec<u8> = vec![0xB9, 0x68, 0x42, 0xFF];
-        let mut cpu = Cpu6502::with_program(program);
-        cpu.memory[0x4269] = 0xFF;
-        cpu.y = 0x01;
-        cpu.run();
-
-        assert_eq!(cpu.a, 0xFF);
-    }
-
-    #[test]
-    fn load_a_indirect_x() {
-        let program: Vec<u8> = vec![0xA1, 0x10, 0xFF];
-        let mut cpu = Cpu6502::with_program(program);
-
-        cpu.x = 0x04;
-        cpu.memory[0x14] = 0x20;
-        cpu.memory[0x20] = 0xFF;
-
-        cpu.run();
-
-        assert_eq!(cpu.a, 0xFF);
-    }
-
-    #[test]
-    fn load_a_indirect_y() {
-        let program: Vec<u8> = vec![0xB1, 0x42, 0xFF];
-        let mut cpu = Cpu6502::with_program(program);
-
-        cpu.y = 0x01;
-        cpu.memory[0x0042] = 0x68;
-        cpu.memory[0x0043] = 0x69;
-        cpu.memory[0x6969] = 0xFF;
-
-        cpu.run();
-
-        assert_eq!(cpu.a, 0xFF);
-    }
-
-    #[test]
-    fn load_x_immediate() {
-        let program: Vec<u8> = vec![0xA2, 0x69, 0xFF];
-        let mut cpu = Cpu6502::with_program(program);
-        cpu.run();
-
-        assert_eq!(cpu.x, 0x69);
-    }
-
-    #[test]
-    fn load_x_absolute() {
-        let program: Vec<u8> = vec![0xAE, 0x00, 0x80, 0xFF];
-        let mut cpu = Cpu6502::with_program(program);
-        cpu.run();
-
-        assert_eq!(cpu.x, 0xAE);
-    }
-
-    #[test]
-    fn load_x_zeropage() {
-        let program: Vec<u8> = vec![0xA6, 0x69, 0xFF];
-        let mut cpu = Cpu6502::with_program(program);
-        cpu.memory[0x69] = 0x69;
-        cpu.run();
-
-        assert_eq!(cpu.x, 0x69);
     }
 }
