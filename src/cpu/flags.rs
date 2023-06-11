@@ -1,13 +1,13 @@
 #[derive(Debug, Default)]
 pub struct Flags {
-    carry: bool,
-    zero: bool,
-    interrupt_disable: bool,
-    decimal: bool,
-    bit0: bool,
-    bit1: bool,
-    overflow: bool,
-    negative: bool,
+    pub carry: bool,
+    pub zero: bool,
+    pub interrupt_disable: bool,
+    pub decimal: bool,
+    pub bit0: bool,
+    pub bit1: bool,
+    pub overflow: bool,
+    pub negative: bool,
 }
 
 impl Flags {

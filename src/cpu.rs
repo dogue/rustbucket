@@ -50,6 +50,7 @@ impl Cpu6502 {
         self.set_pointer_low(self.memory[0xFFFC]);
         self.set_pointer_high(self.memory[0xFFFD]);
         self.ip = self.pointer;
+        self.halted = false;
     }
 
     pub fn run(&mut self) {
