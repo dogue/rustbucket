@@ -6,10 +6,14 @@ pub fn load_a_immediate(cpu: &mut Cpu6502) {
 
     if cpu.a == 0 {
         cpu.flags.set_zero();
+    } else {
+        cpu.flags.clear_zero();
     }
 
     if (cpu.a & (1 << 7)) != 0 {
         cpu.flags.set_negative();
+    } else {
+        cpu.flags.clear_negative();
     }
 }
 
@@ -21,10 +25,14 @@ pub fn load_a_zeropage(cpu: &mut Cpu6502) {
 
     if cpu.a == 0 {
         cpu.flags.set_zero();
+    } else {
+        cpu.flags.clear_zero();
     }
 
     if (cpu.a & (1 << 7)) != 0 {
         cpu.flags.set_negative();
+    } else {
+        cpu.flags.clear_negative();
     }
 }
 
@@ -38,15 +46,18 @@ pub fn load_a_zeropage_x(cpu: &mut Cpu6502) {
 
     if cpu.a == 0 {
         cpu.flags.set_zero();
+    } else {
+        cpu.flags.clear_zero();
     }
 
     if (cpu.a & (1 << 7)) != 0 {
         cpu.flags.set_negative();
+    } else {
+        cpu.flags.clear_negative();
     }
 }
 
 pub fn load_a_absolute(cpu: &mut Cpu6502) {
-    // LDA absolute
     let low = cpu.fetch_byte();
     let high = cpu.fetch_byte();
     cpu.set_pointer_high(high);
@@ -55,10 +66,14 @@ pub fn load_a_absolute(cpu: &mut Cpu6502) {
 
     if cpu.a == 0 {
         cpu.flags.set_zero();
+    } else {
+        cpu.flags.clear_zero();
     }
 
     if (cpu.a & (1 << 7)) != 0 {
         cpu.flags.set_negative();
+    } else {
+        cpu.flags.clear_negative();
     }
 }
 
@@ -73,10 +88,14 @@ pub fn load_a_absolute_x(cpu: &mut Cpu6502) {
 
     if cpu.a == 0 {
         cpu.flags.set_zero();
+    } else {
+        cpu.flags.clear_zero();
     }
 
     if (cpu.a & (1 << 7)) != 0 {
         cpu.flags.set_negative();
+    } else {
+        cpu.flags.clear_negative();
     }
 }
 
@@ -91,10 +110,14 @@ pub fn load_a_absolute_y(cpu: &mut Cpu6502) {
 
     if cpu.a == 0 {
         cpu.flags.set_zero();
+    } else {
+        cpu.flags.clear_zero();
     }
 
     if (cpu.a & (1 << 7)) != 0 {
         cpu.flags.set_negative();
+    } else {
+        cpu.flags.clear_negative();
     }
 }
 
@@ -110,10 +133,14 @@ pub fn load_a_indirect_x(cpu: &mut Cpu6502) {
 
     if cpu.a == 0 {
         cpu.flags.set_zero();
+    } else {
+        cpu.flags.clear_zero();
     }
 
     if (cpu.a & (1 << 7)) != 0 {
         cpu.flags.set_negative();
+    } else {
+        cpu.flags.clear_negative();
     }
 }
 
@@ -129,10 +156,14 @@ pub fn load_a_indirect_y(cpu: &mut Cpu6502) {
 
     if cpu.a == 0 {
         cpu.flags.set_zero();
+    } else {
+        cpu.flags.clear_zero();
     }
 
     if (cpu.a & (1 << 7)) != 0 {
         cpu.flags.set_negative();
+    } else {
+        cpu.flags.clear_negative();
     }
 }
 
